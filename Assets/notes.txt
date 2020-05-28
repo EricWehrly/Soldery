@@ -1,0 +1,6 @@
+Realtime mesh deformation (for chip melting):
+https://www.codinblack.com/vertex-manipulation-using-shader-graph-in-unity3d/
+
+Edge detect:
+https://forum.unity.com/threads/shadergraph-highlighting-edges.557005/
+https://www.danielilett.com/2019-05-11-tut1-4-smo-edge-detect/

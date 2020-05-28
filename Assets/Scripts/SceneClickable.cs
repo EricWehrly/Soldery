@@ -22,7 +22,6 @@ public class SceneClickable : MonoBehaviour
 
         if (MouseOverMaterial == null)
         {
-            // mouseOverMaterial = GameObject.Find
             // System.Console.Error("No highlight material defined.");
             Debug.Log("No highlight material defined.");
         }
