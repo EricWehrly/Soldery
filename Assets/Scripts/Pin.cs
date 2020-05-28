@@ -10,22 +10,27 @@ public class Pin : MonoBehaviour
     private Transform PowerConnectorPinPlus;
     private Transform PowerConnectorPinMinus;
 
+    public Transform ConnectionDestination;
+
     private void Awake()
     {
-        handleStaticAssignments();
+        // handleStaticAssignments();
 
-        if(gameObject.name.Contains("Power +"))
+        // connectStaticConnectors();
+
+        if(ConnectionDestination != null)
         {
-            new Circuit(transform, PowerConnectorPinPlus);
-        } else if(gameObject.name.Contains("Power -"))
-        {
-            new Circuit(transform, PowerConnectorPinMinus);
+            new Circuit(transform, ConnectionDestination);
+
+            // if name contains power
+            // extend materials
+            // second material is "powered" ...
         }
-        
+    }
 
-        // if name contains power
-        // extend materials
-        // second material is "powered" ...
+    private void Start()
+    {
+        Circuit.RenderCircuits();
     }
 
     private void handleStaticAssignments()
@@ -56,6 +61,18 @@ public class Pin : MonoBehaviour
                 PowerConnectorPinMinus = _powerConnector.Find("Small Power -");
                 PowerConnectorPinMinus.GetComponent<MeshRenderer>().material = _poweredMaterial;
             }
+        }
+    }
+
+    private void connectStaticConnectors()
+    {
+        if (gameObject.name.Contains("Power +") && PowerConnectorPinPlus != null)
+        {
+            new Circuit(transform, PowerConnectorPinPlus);
+        }
+        else if (gameObject.name.Contains("Power -") && PowerConnectorPinMinus != null)
+        {
+            new Circuit(transform, PowerConnectorPinMinus);
         }
     }
 }

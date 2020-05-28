@@ -1,16 +1,22 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
-public class Circuit
+public partial class Circuit
 {
+    private static readonly object syncLock = new object();
+
     private static Transform _mainBoard;
     private static GameObject _original;
     private static List<Circuit> Circuits = new List<Circuit>();
 
-    public readonly GameObject Origin;
-    public readonly GameObject Destination;
-    public readonly GameObject LineRendererObject;
+    public readonly float Distance;
+    public readonly Transform Origin;
+    public readonly Transform Destination;
+    // public readonly GameObject LineRendererObject;
     public readonly List<Vector2> NodeList;
+
+    public bool Rendered { get; private set; }
 
     static Circuit()
     {
@@ -25,27 +31,44 @@ public class Circuit
 
     public Circuit(Transform origin, Transform destination)
     {
-        // create a new gameobject
-        // give it a line renderer
-        // find the path from origin to destination
-        // mark all the points ...
+        Origin = origin;
+        Destination = destination;
 
-        // GameObject.Instantiate<>
+        Distance = Vector2.Distance(destination.localPosition, origin.localPosition);
+        Debug.Log("Distance: " + Distance);
+        Circuits.Add(this);
+    }
+
+    public static void RenderCircuits()
+    {
+        lock (syncLock)
+        {
+            var orderedList = Circuits.OrderBy(circuit => circuit.Distance);
+
+            foreach (Circuit circuit in orderedList)
+            {
+                if (!circuit.Rendered) circuit.Render();
+            }
+        }
+    }
+
+    public void Render()
+    {
         var lines = GameObject.Instantiate(_original, _mainBoard);
         var lineRenderer = lines.GetComponent<LineRenderer>();
 
-        lineRenderer.positionCount = 3;
-
-        Vector3 originPosition = getLocalPosition(origin);
-        Vector3 destinationPosition = getLocalPosition(destination);
+        Vector3 originPosition = getLocalPosition(Origin);
+        Vector3 destinationPosition = getLocalPosition(Destination);
         // Debug.Log("Local calculation is from " + originPosition + " to " + destinationPosition);
 
-        lineRenderer.positionCount = 2;
+        lineRenderer.positionCount = 3;
         lineRenderer.SetPosition(0, originPosition);
         Vector3 secondPoint = new Vector3(originPosition.x, originPosition.y,
             destinationPosition.z);
-        // lineRenderer.SetPosition(1, secondPoint);
+        lineRenderer.SetPosition(1, secondPoint);
         lineRenderer.SetPosition(lineRenderer.positionCount - 1, destinationPosition);
+
+        Rendered = true;
     }
 
     private Vector3 getLocalPosition(Transform childObject)
@@ -72,19 +95,5 @@ public class Circuit
         point = dir + pivot;
 
         return point;
-    }
-
-    private class CircuitNodes
-    {
-        public readonly GameObject Origin;
-        public readonly GameObject Destination;
-        public readonly List<Vector2> NodeList;
-
-        public CircuitNodes(GameObject origin, GameObject destination, List<Vector2> nodeList)
-        {
-            Origin = origin;
-            Destination = destination;
-            NodeList = nodeList;
-        }
     }
 }
