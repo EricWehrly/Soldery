@@ -7,7 +7,7 @@ public partial class Circuit
     private const int RAYCAST_IGNORE_LAYER = 2;
 
     private static readonly object syncLock = new object();
-    private const float STEP_AMOUNT = .005f;
+    private const float STEP_AMOUNT = .01f;
 
     private static bool[,] collisionMatrix;
     private static Transform _mainBoard;
@@ -63,24 +63,39 @@ public partial class Circuit
         var lineRenderer = lines.GetComponent<LineRenderer>();
 
         var gridPosition = getPositionInCollisionMatrix(Origin.position);
-        Debug.Log(gridPosition);
 
         Vector3 originPosition = getLocalPosition(Origin);
-        lineRenderer.positionCount = 2;
+        lineRenderer.positionCount = 1;
         lineRenderer.SetPosition(0, originPosition);
 
-        var nextX = nextNotCollidingXIndex(gridPosition.Item1, gridPosition.Item2);
-        var newX = STEP_AMOUNT * (gridPosition.Item1 - nextX);
-        lineRenderer.SetPosition(1, new Vector3(
-            originPosition.x -= newX,
-            originPosition.y,
-            originPosition.z
-            ));
+        var nextX = nextCollidingXIndex(gridPosition.Item1, gridPosition.Item2);
+        if (nextX != -1)
+        {
+            lineRenderer.positionCount++;
+            var newX = STEP_AMOUNT * (gridPosition.Item1 - nextX);
+            lineRenderer.SetPosition(lineRenderer.positionCount - 1, new Vector3(
+                originPosition.x - newX,
+                originPosition.y,
+                originPosition.z
+                ));
+
+            var nextZ = getNextCollidingZIndex(nextX, gridPosition.Item2);
+            if (nextZ != -1)
+            {
+                lineRenderer.positionCount++;
+                var newZ = STEP_AMOUNT * (nextZ - gridPosition.Item2);
+                lineRenderer.SetPosition(lineRenderer.positionCount - 1, new Vector3(
+                    originPosition.x - newX,
+                    originPosition.y,
+                    originPosition.z + newZ
+                    ));
+            }
+        }
 
         Rendered = true;
     }
 
-    private int nextNotCollidingXIndex(int xIndex, int zIndex)
+    private int nextCollidingXIndex(int xIndex, int zIndex)
     {
         while (xIndex > 0)
         {
@@ -92,7 +107,37 @@ public partial class Circuit
             collisionMatrix[xIndex, zIndex] = true;
         }
 
-        return -1;
+        return xIndex;
+    }
+
+    private int getPrevCollidingZIndex(int xIndex, int zIndex)
+    {
+        while (zIndex > 0 && zIndex < collisionMatrix.GetLength(1))
+        {
+            zIndex -= 1;
+            if (collisionMatrix[xIndex, zIndex] == true)
+            {
+                return zIndex;
+            }
+            collisionMatrix[xIndex, zIndex] = true;
+        }
+
+        return zIndex;
+    }
+
+    private int getNextCollidingZIndex(int xIndex, int zIndex)
+    {
+        while (zIndex < collisionMatrix.GetLength(1) - 1)
+        {
+            zIndex++;
+            if (collisionMatrix[xIndex, zIndex] == true)
+            {
+                return zIndex;
+            }
+            collisionMatrix[xIndex, zIndex] = true;
+        }
+
+        return zIndex;
     }
 
     public void old_Render()
