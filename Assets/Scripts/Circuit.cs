@@ -4,6 +4,8 @@ using System.Linq;
 
 public partial class Circuit
 {
+    private const int RAYCAST_IGNORE_LAYER = 2;
+
     private static readonly object syncLock = new object();
 
     private static Transform _mainBoard;
@@ -14,7 +16,7 @@ public partial class Circuit
     public readonly Transform Origin;
     public readonly Transform Destination;
     // public readonly GameObject LineRendererObject;
-    public readonly List<Vector2> NodeList;
+    public readonly List<Vector3> NodeList;
 
     public bool Rendered { get; private set; }
 
@@ -25,8 +27,8 @@ public partial class Circuit
 
         // Because Unity is being a pain:
         Application.targetFrameRate = 60;
-        Debug.Log("Target frame rate: " + Application.targetFrameRate);
-        Debug.Log("vSync: " + QualitySettings.vSyncCount);
+        // Debug.Log("Target frame rate: " + Application.targetFrameRate);
+        // Debug.Log("vSync: " + QualitySettings.vSyncCount);
     }
 
     public Circuit(Transform origin, Transform destination)
@@ -35,7 +37,6 @@ public partial class Circuit
         Destination = destination;
 
         Distance = Vector2.Distance(destination.localPosition, origin.localPosition);
-        Debug.Log("Distance: " + Distance);
         Circuits.Add(this);
     }
 
@@ -61,14 +62,80 @@ public partial class Circuit
         Vector3 destinationPosition = getLocalPosition(Destination);
         // Debug.Log("Local calculation is from " + originPosition + " to " + destinationPosition);
 
-        lineRenderer.positionCount = 3;
+        lineRenderer.positionCount = 4;
         lineRenderer.SetPosition(0, originPosition);
-        Vector3 secondPoint = new Vector3(originPosition.x, originPosition.y,
-            destinationPosition.z);
+
+        Vector3 secondPoint = getSecondLinePoint(originPosition);
+        // getNextLinePoint(originPosition, Origin.forward * -1f);
+        
+        // We really wanna go 'backward' ... not sure why, but this is easier than flipping all the pins >_>
+        Vector3 secondPosition = originPosition + (Origin.forward * -.1f);
         lineRenderer.SetPosition(1, secondPoint);
+        // 'forward' to 'edge'
+        // switch axes toward target, but not at
+
+        Vector3 thirdPoint = new Vector3(originPosition.x, originPosition.y,
+            destinationPosition.z);
+        lineRenderer.SetPosition(lineRenderer.positionCount - 2, thirdPoint);
         lineRenderer.SetPosition(lineRenderer.positionCount - 1, destinationPosition);
 
+        // addMeshToLineRenderer(lineRenderer);
+
         Rendered = true;
+    }
+
+    private void addMeshToLineRenderer(LineRenderer lineRenderer)
+    {
+        MeshCollider meshCollider = lineRenderer.gameObject.AddComponent<MeshCollider>();
+        Mesh mesh = new Mesh();
+        lineRenderer.BakeMesh(mesh, true);
+        meshCollider.sharedMesh = mesh;
+    }
+
+    private Vector3 getSecondLinePoint(Vector3 originLocalPosition)
+    {
+        float maxDistance = 1f;
+        RaycastHit hitInfo;
+
+        Origin.gameObject.layer = RAYCAST_IGNORE_LAYER;
+
+        var rayOrigin = new Vector3(Origin.position.x, Origin.position.y + .001f, Origin.position.z);
+        Ray ray = new Ray(rayOrigin, Origin.forward * -1f);
+        bool isHit = Physics.Raycast(ray, out hitInfo, maxDistance);
+        // Debug.DrawRay(rayOrigin, Origin.forward * -1f, Color.red, 999999);
+
+        // bool isHit = Origin.GetComponent<Collider>().Raycast(ray, out hitInfo, maxDistance);
+
+        /*
+        if (isHit)
+        {
+            var hitObject = hitInfo.collider.gameObject;
+            Debug.Log("Hit from " + Origin.position + " to " + hitInfo.normal);
+            Debug.Log("From: " + Origin.parent.name + " " + Origin.name);
+            Debug.Log("To: " + hitObject.transform.parent.name + " " +
+                hitInfo.collider.gameObject.name);
+        }
+        */
+
+        Origin.gameObject.layer = 0;
+
+        if (isHit)
+        {
+            var forward = Origin.forward * -1f * (hitInfo.distance);
+            return originLocalPosition + forward;
+        }
+        // This is definitely incorrect, need to handle this ...
+        else return new Vector3(0, 0, 0);
+    }
+
+    private Vector3 getNextLinePoint(Vector3 lastLinePoint, Vector3 direction)
+    {
+        // need to establish maxes for axes
+
+        var rayResult = Physics.Raycast(lastLinePoint, direction);
+        Debug.Log(rayResult);
+
+        return new Vector3(0, 0, 0);
     }
 
     private Vector3 getLocalPosition(Transform childObject)
