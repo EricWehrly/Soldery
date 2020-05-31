@@ -48,8 +48,8 @@ public partial class Circuit
     {
         lock (syncLock)
         {
-            var orderedList = Circuits.OrderBy(circuit => circuit.Distance);
-            // var orderedList = Circuits.OrderByDescending(circuit => circuit.Distance);
+            // var orderedList = Circuits.OrderBy(circuit => circuit.Distance);
+            var orderedList = Circuits.OrderByDescending(circuit => circuit.Distance);
 
             foreach (Circuit circuit in orderedList)
             {
@@ -89,64 +89,6 @@ public partial class Circuit
         Rendered = true;
     }
 
-    private Vector3 gridRelativePosition(Vector3 originPosition, (int, int) gridPosition, Point offset)
-    {
-        return new Vector3(originPosition.x - offsetFromGridPosition(gridPosition.Item1 - offset.x),
-            originPosition.y,
-            originPosition.z - offsetFromGridPosition(gridPosition.Item1 - offset.y));
-    }
-
-    private Vector3 gridRelativePosition(Vector3 originPosition, Point gridPosition, Point offset)
-    {
-        return new Vector3(originPosition.x - offsetFromGridPosition(gridPosition.x - offset.x),
-            originPosition.y,
-            originPosition.z - offsetFromGridPosition(gridPosition.y - offset.y));
-    }
-
-    public void Render2()
-    {
-        var lines = GameObject.Instantiate(_original, _mainBoard);
-        var lineRenderer = lines.GetComponent<LineRenderer>();
-
-        var gridPosition = getPositionInCollisionMatrix(Origin.position);
-
-        Vector3 originPosition = getLocalPosition(Origin);
-        lineRenderer.positionCount = 1;
-        lineRenderer.SetPosition(0, originPosition);
-
-        var nextPoint = getNextLinePoint(
-            new Point(gridPosition.Item1, gridPosition.Item2),
-            new Point(-1, 0));
-        Debug.Log(gridPosition + " -> " + nextPoint);
-
-        var nextX = nextCollidingXIndex(gridPosition.Item1, gridPosition.Item2) - 1;
-        if (nextX != -1)
-        {
-            lineRenderer.positionCount++;
-            var newX = STEP_AMOUNT * (gridPosition.Item1 - nextX);
-            newX *= 2; // for parent scaling
-            lineRenderer.SetPosition(lineRenderer.positionCount - 1, new Vector3(
-                originPosition.x - newX,
-                originPosition.y,
-                originPosition.z
-                ));
-
-            var nextZ = getNextCollidingZIndex(nextX, gridPosition.Item2);
-            if (nextZ != -1)
-            {
-                var newZ = STEP_AMOUNT * (nextZ - gridPosition.Item2);
-                newZ *= 2;  // for parent scaling
-                addLineRendererPoint(lineRenderer, new Vector3(
-                    originPosition.x - newX,
-                    originPosition.y,
-                    originPosition.z + newZ
-                    ));
-            }
-        }
-
-        Rendered = true;
-    }
-
     private void addLineRendererPoint(LineRenderer lineRenderer, Vector3 point)
     {
         lineRenderer.positionCount++;
@@ -170,164 +112,6 @@ public partial class Circuit
         // if (iterationCount < 2) Debug.Log("Iteration count only " + iterationCount);
 
         return currentPoint;
-    }
-
-    private int nextCollidingXIndex(int xIndex, int zIndex)
-    {
-        while (xIndex > 0)
-        {
-            xIndex -= 1;
-            if (collisionMatrix[xIndex, zIndex] == true)
-            {
-                return xIndex;
-            }
-            collisionMatrix[xIndex, zIndex] = true;
-        }
-
-        return xIndex;
-    }
-
-    private int getPrevCollidingZIndex(int xIndex, int zIndex)
-    {
-        while (zIndex > 0 && zIndex < collisionMatrix.GetLength(1))
-        {
-            zIndex -= 1;
-            if (collisionMatrix[xIndex, zIndex] == true)
-            {
-                return zIndex;
-            }
-            collisionMatrix[xIndex, zIndex] = true;
-        }
-
-        return zIndex;
-    }
-
-    private int getNextCollidingZIndex(int xIndex, int zIndex)
-    {
-        while (zIndex < collisionMatrix.GetLength(1) - 1)
-        {
-            zIndex++;
-            if (collisionMatrix[xIndex, zIndex] == true)
-            {
-                return zIndex;
-            }
-            collisionMatrix[xIndex, zIndex] = true;
-        }
-
-        return zIndex;
-    }
-
-    public void old_Render()
-    {
-        var lines = GameObject.Instantiate(_original, _mainBoard);
-        var lineRenderer = lines.GetComponent<LineRenderer>();
-
-        Vector3 originPosition = getLocalPosition(Origin);
-        Vector3 destinationPosition = getLocalPosition(Destination);
-        // Debug.Log("Local calculation is from " + originPosition + " to " + destinationPosition);
-
-        lineRenderer.positionCount = 3;
-        lineRenderer.SetPosition(0, originPosition);
-
-        Vector3 secondPoint = getSecondLinePoint(originPosition);
-        if (secondPoint != Vector3.zero)
-        {
-            lineRenderer.positionCount++;
-            lineRenderer.SetPosition(1, secondPoint);
-
-            var thirdLinePoint = getNextLinePoint(secondPoint);
-            if (thirdLinePoint != Vector3.zero)
-            {
-                lineRenderer.positionCount++;
-                lineRenderer.SetPosition(lineRenderer.positionCount - 3, thirdLinePoint);
-            } else
-            {
-                Debug.Log("No third line point.");
-            }
-        }
-        // 'forward' to 'edge'
-        // switch axes toward target, but not at
-
-        Vector3 thirdPoint = new Vector3(originPosition.x, originPosition.y,
-            destinationPosition.z);
-        lineRenderer.SetPosition(lineRenderer.positionCount - 2, thirdPoint);
-        lineRenderer.SetPosition(lineRenderer.positionCount - 1, destinationPosition);
-
-        addMeshToLineRenderer(lineRenderer);
-
-        Rendered = true;
-    }
-
-    private void addMeshToLineRenderer(LineRenderer lineRenderer)
-    {
-        var initialWidth = lineRenderer.startWidth;
-        lineRenderer.SetWidth(initialWidth * 5, initialWidth * 5);
-
-        MeshCollider meshCollider = lineRenderer.gameObject.AddComponent<MeshCollider>();
-        Mesh mesh = new Mesh();
-        // lineRenderer.BakeMesh(mesh, Camera.main, true);
-        lineRenderer.BakeMesh(mesh);
-        meshCollider.sharedMesh = mesh;
-
-        lineRenderer.SetWidth(initialWidth, initialWidth);
-    }
-
-    private Vector3 getSecondLinePoint(Vector3 originLocalPosition)
-    {
-        float maxDistance = 1f;
-        RaycastHit hitInfo;
-
-        // Origin.gameObject.layer = RAYCAST_IGNORE_LAYER;
-
-        var rayOrigin = new Vector3(Origin.position.x, Origin.position.y + .001f, Origin.position.z);
-        var rayDirection = Origin.forward * -1f;
-        // We really wanna go 'backward' ... not sure why, but this is easier than flipping all the pins >_>
-        Ray ray = new Ray(rayOrigin, rayDirection);
-        bool isHit = Physics.Raycast(ray, out hitInfo, maxDistance);
-        // Debug.DrawRay(rayOrigin, Origin.forward * -1f, Color.red, 999999);
-
-        // Origin.gameObject.layer = 0;
-
-        if (isHit)
-        {
-            var forward = Origin.forward * -1f * (hitInfo.distance);
-            return originLocalPosition + forward;
-        }
-        // This is definitely incorrect, need to handle this ...
-        else
-        {
-            Debug.DrawRay(rayOrigin, rayDirection, Color.white, 999999);
-            return Vector3.zero;
-        }
-    }
-
-    private Vector3 getNextLinePoint(Vector3 lastLinePoint)
-    {
-        // need to establish maxes for axes
-
-        var lastLineWorldPoint = Origin.position + lastLinePoint;
-
-        float maxDistance = 1f;
-        RaycastHit hitInfo;
-
-        var rayOrigin = lastLinePoint;
-        rayOrigin.Scale(_mainBoard.lossyScale);
-        rayOrigin += _mainBoard.position;
-        var rayDirection = Origin.right * -1f;
-        Ray ray = new Ray(rayOrigin, rayDirection);
-        bool isHit = Physics.Raycast(ray, out hitInfo, maxDistance);
-
-        if (isHit)
-        {
-            var forward = Origin.right * -1f * (hitInfo.distance);
-            return lastLinePoint + forward;
-        }
-        // This is definitely incorrect, need to handle this ...
-        else
-        {
-            Debug.DrawRay(rayOrigin, rayDirection, Color.red, 999999);
-            return Vector3.zero;
-        }
     }
 
     private Vector3 getLocalPosition(Transform childObject)
@@ -421,14 +205,6 @@ public partial class Circuit
             offsetFromGridPosition(offsetX),
             .2f,
             offsetFromGridPosition(offsetZ));
-
-
-        var renderer = _mainBoard.transform.Find("PCB").GetComponent<Renderer>();
-        var x = renderer.bounds.min.x + (xIndex * STEP_AMOUNT);
-        var y = _mainBoard.position.y + 1f;
-        var z = renderer.bounds.min.z + (yIndex * STEP_AMOUNT);
-
-        return new Vector3(x, y, z);
     }
 
     private float offsetFromGridPosition(int gridPosition)
@@ -444,15 +220,6 @@ public partial class Circuit
         var xIndex = Mathf.CeilToInt((transformWorldPosition.x - renderer.bounds.min.x) / STEP_AMOUNT);
         var zIndex = Mathf.CeilToInt((transformWorldPosition.z - renderer.bounds.min.z) / STEP_AMOUNT);
         return (xIndex, zIndex);
-    }
-
-    private static Point getPointInCollisionMatrix(Vector3 transformWorldPosition)
-    {
-        var renderer = _mainBoard.transform.Find("PCB").GetComponent<Renderer>();
-
-        var xIndex = Mathf.CeilToInt((transformWorldPosition.x - renderer.bounds.min.x) / STEP_AMOUNT);
-        var zIndex = Mathf.CeilToInt((transformWorldPosition.z - renderer.bounds.min.z) / STEP_AMOUNT);
-        return new Point(xIndex, zIndex);
     }
 
     private struct Point
