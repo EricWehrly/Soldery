@@ -14,6 +14,7 @@ public class Circuit
     public readonly float Distance;
     public readonly Transform Origin;
     public readonly Transform Destination;
+    private LineRenderer lineRenderer;
 
     public bool Rendered { get; private set; }
 
@@ -54,7 +55,7 @@ public class Circuit
     {
         var lines = GameObject.Instantiate(_original, _mainBoard);
         lines.name = "Circuit " + circuitNumber++;
-        var lineRenderer = lines.GetComponent<LineRenderer>();
+        lineRenderer = lines.GetComponent<LineRenderer>();
 
         var gridPosition = CollisionMatrix.getPositionInCollisionMatrix(Origin.position);
         var gridDestination = CollisionMatrix.getPositionInCollisionMatrix(Destination.position);
@@ -65,26 +66,39 @@ public class Circuit
         lineRenderer.SetPosition(0, originPosition);
 
         // move 'forward' from pin, until you hit something
-        var nextGridPoint = getNextLinePoint(
+        var direction = new Point(-1, 0);
+        var nextGridPoint = getNextGridPosition(
             new Point(gridPosition.Item1, gridPosition.Item2),
-            new Point(-1, 0), lineRenderer, gridDestination);
+            direction, gridDestination);
         var nextPosition = CollisionMatrix.convertGridSpaceToObjectSpace(nextGridPoint.x, nextGridPoint.y);
         nextPosition.z = originPosition.z;
         if (nextGridPoint.x == gridDestination.Item1) nextPosition.x = destinationPosition.x;
         addLineRendererPoint(lineRenderer, nextPosition);
-        CollisionMatrix.drawRayToCollisionMatrixPoint(nextGridPoint.x, nextGridPoint.y);
+        CollisionMatrix.drawRayToCollisionMatrixPoint((nextGridPoint.x, nextGridPoint.y));
 
         // then turn, heading toward our destination
-        var thirdPoint = getNextLinePoint(nextGridPoint, new Point(0, 1), lineRenderer, gridDestination);
-        var thirdPosition = CollisionMatrix.convertGridSpaceToObjectSpace(thirdPoint.x, thirdPoint.y);
-        thirdPosition.x = nextPosition.x;
-        if (nextGridPoint.y == gridDestination.Item2) nextPosition.z = destinationPosition.z;
-        addLineRendererPoint(lineRenderer, thirdPosition);
-        CollisionMatrix.drawRayToCollisionMatrixPoint(thirdPoint.x, thirdPoint.y);
+        addNextLinePoint(gridDestination, destinationPosition, direction, nextGridPoint, nextPosition);
 
         // addLineRendererPoint(lineRenderer, getLocalPosition(Destination));
 
         Rendered = true;
+    }
+
+    // should this be 'continue to destination'?
+    private void addNextLinePoint((int, int) gridDestination, Vector3 destinationPosition, 
+        Point prevDirection, Point prevGridPoint, Vector3 prevPosition)
+    {
+        var direction = new Point(-1, 0);
+        if (prevDirection.x == -1) direction = new Point(0, 1);
+
+        var nextPoint = getNextGridPosition(prevGridPoint, direction, gridDestination);
+        var thirdPosition = CollisionMatrix.convertGridSpaceToObjectSpace(nextPoint.x, nextPoint.y);
+        thirdPosition.x = prevPosition.x;
+        if (prevGridPoint.y == gridDestination.Item2) thirdPosition.z = destinationPosition.z;
+        addLineRendererPoint(lineRenderer, thirdPosition);
+        // CollisionMatrix.drawRayToCollisionMatrixPoint((nextPoint.x, nextPoint.y));
+
+        // while not at destination, addNextLinePoint
     }
 
     private void addLineRendererPoint(LineRenderer lineRenderer, Vector3 point)
@@ -93,7 +107,7 @@ public class Circuit
         lineRenderer.SetPosition(lineRenderer.positionCount - 1, point);
     }
 
-    private Point getNextLinePoint(Point currentPoint, Point direction, LineRenderer line, (int, int) gridDestination)
+    private Point getNextGridPosition(Point currentPoint, Point direction, (int, int) gridDestination)
     {
         currentPoint = currentPoint + direction;
 
@@ -102,12 +116,12 @@ public class Circuit
             && (CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == null
             || CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == Origin.gameObject))
         {
-            if (direction.x > 0 && currentPoint.x >= gridDestination.Item1) break;
-            if (direction.x < 0 && currentPoint.x <= gridDestination.Item1) break;
-            if (direction.y > 0 && currentPoint.y >= gridDestination.Item2) break;
-            if (direction.y < 0 && currentPoint.y <= gridDestination.Item2) break;
+            if (direction.x > 0 && currentPoint.x >= gridDestination.Item1
+            || direction.x < 0 && currentPoint.x <= gridDestination.Item1
+            || direction.y > 0 && currentPoint.y >= gridDestination.Item2
+            || direction.y < 0 && currentPoint.y <= gridDestination.Item2) break;
 
-            CollisionMatrix.matrix[currentPoint.x, currentPoint.y] = line.gameObject;
+            CollisionMatrix.matrix[currentPoint.x, currentPoint.y] = lineRenderer.gameObject;
             currentPoint = currentPoint + direction;
         }
         /*
@@ -120,6 +134,12 @@ public class Circuit
             Debug.Log("Hit " + CollisionMatrix.matrix[currentPoint.x, currentPoint.y].name + " at " + currentPoint);
         }
         */
+        return clampCurrentPointToDestination(currentPoint, direction, gridDestination);
+    }
+
+    // TODO: Just use gridDestination as min and max, drop direction ...
+    private static Point clampCurrentPointToDestination(Point currentPoint, Point direction, (int, int) gridDestination)
+    {
         if (direction.x > 0 && currentPoint.x >= gridDestination.Item1)
         {
             currentPoint.x = gridDestination.Item1;

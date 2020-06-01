@@ -14,12 +14,12 @@ class CollisionMatrix
         mapCollisionMatrix();
     }
 
-    public static void drawRayToCollisionMatrixPoint(int xIndex, int yIndex)
+    public static void drawRayToCollisionMatrixPoint((int, int) point)
     {
         var renderer = _mainBoard.transform.Find("PCB").GetComponent<Renderer>();
-        var x = renderer.bounds.min.x + (xIndex * STEP_AMOUNT);
+        var x = renderer.bounds.min.x + (point.Item1 * STEP_AMOUNT);
         var y = _mainBoard.position.y + 1f;
-        var z = renderer.bounds.min.z + (yIndex * STEP_AMOUNT);
+        var z = renderer.bounds.min.z + (point.Item2 * STEP_AMOUNT);
 
         var rayOrigin = new Vector3(x, y, z);
         var rayDirection = Vector3.down;
