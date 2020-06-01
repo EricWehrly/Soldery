@@ -68,7 +68,7 @@ public class Circuit
 
         var nextPoint = getNextLinePoint(
             new Point(gridPosition.Item1, gridPosition.Item2),
-            new Point(-1, 0));
+            new Point(-1, 0), lineRenderer);
 
         // move 'forward' from pin, until you hit something
         var secondPosition = CollisionMatrix.convertGridSpaceToObjectSpace(nextPoint.x, nextPoint.y);
@@ -76,7 +76,7 @@ public class Circuit
         CollisionMatrix.drawRayToCollisionMatrixPoint(nextPoint.x, nextPoint.y);
 
         // then turn, heading toward our destination
-        var thirdPoint = getNextLinePoint(nextPoint, new Point(0, 1));
+        var thirdPoint = getNextLinePoint(nextPoint, new Point(0, 1), lineRenderer);
         var thirdPosition = CollisionMatrix.convertGridSpaceToObjectSpace(thirdPoint.x, thirdPoint.y);
         addLineRendererPoint(lineRenderer, thirdPosition);
         CollisionMatrix.drawRayToCollisionMatrixPoint(thirdPoint.x, thirdPoint.y);
@@ -92,21 +92,27 @@ public class Circuit
         lineRenderer.SetPosition(lineRenderer.positionCount - 1, point);
     }
 
-    private Point getNextLinePoint(Point currentPoint, Point direction)
+    private Point getNextLinePoint(Point currentPoint, Point direction, LineRenderer line)
     {
         // Debug.Log("Getting next line point");
-        var iterationCount = 0;
         currentPoint = currentPoint + direction;
-        while (currentPoint.x > 1 && currentPoint.x < CollisionMatrix.matrix.GetLength(0) - 1
-            && currentPoint.y > 1 && currentPoint.y < CollisionMatrix.matrix.GetLength(1) - 1
-            && CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == false)
-        {
-            CollisionMatrix.matrix[currentPoint.x, currentPoint.y] = true;
-            currentPoint = currentPoint + direction;
 
-            iterationCount++;
+        while (CollisionMatrix.InBounds((currentPoint.x, currentPoint.y))
+            && (CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == null
+            || CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == Origin.gameObject))
+        {
+            CollisionMatrix.matrix[currentPoint.x, currentPoint.y] = line.gameObject;
+            currentPoint = currentPoint + direction;
         }
-        // if (iterationCount < 2) Debug.Log("Iteration count only " + iterationCount);
+        if (CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == null)
+        {
+            Debug.Log("Hit edge of map at " + currentPoint);
+        }
+        else
+        {
+            Debug.Log("Hit " + CollisionMatrix.matrix[currentPoint.x, currentPoint.y].name + " at " + currentPoint);
+        }
+        currentPoint = currentPoint - direction;
 
         return currentPoint;
     }
@@ -151,6 +157,11 @@ public class Circuit
         public static Point operator +(Point a, Point b)
         {
             return new Point(a.x + b.x, a.y + b.y);
+        }
+
+        public static Point operator -(Point a, Point b)
+        {
+            return new Point(a.x - b.x, a.y - b.y);
         }
 
         public override string ToString()

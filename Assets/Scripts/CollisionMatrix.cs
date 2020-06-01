@@ -4,7 +4,7 @@ class CollisionMatrix
 {
     private const float STEP_AMOUNT = .0075f;
     private static Transform _mainBoard;
-    public static bool[,] matrix { get; private set; }
+    public static GameObject[,] matrix { get; private set; }
 
     static CollisionMatrix()
     {
@@ -47,7 +47,13 @@ class CollisionMatrix
             offsetFromGridPosition(offsetZ));
     }
 
-    public static float offsetFromGridPosition(int gridPosition)
+    public static bool InBounds((int, int) Point)
+    {
+        return Point.Item1 > 1 && Point.Item1 < CollisionMatrix.matrix.GetLength(0) - 1
+               && Point.Item2 > 1 && Point.Item2 < CollisionMatrix.matrix.GetLength(1) - 1;
+    }
+
+    static float offsetFromGridPosition(int gridPosition)
     {
         return STEP_AMOUNT * gridPosition
             * 2; // for parent scaling
@@ -65,7 +71,7 @@ class CollisionMatrix
         // TODO: Can we just change this to bounds.width?
         int horizontalPositionCount = Mathf.CeilToInt((renderer.bounds.max.x - renderer.bounds.min.x) / STEP_AMOUNT);
         int verticalPositionCount = Mathf.CeilToInt((renderer.bounds.max.z - renderer.bounds.min.z) / STEP_AMOUNT);
-        matrix = new bool[horizontalPositionCount, verticalPositionCount];
+        matrix = new GameObject[horizontalPositionCount, verticalPositionCount];
 
         for (var zIndex = 0; zIndex < verticalPositionCount; zIndex++)
         {
@@ -81,12 +87,12 @@ class CollisionMatrix
                     if (raycastHit.collider.gameObject.name == "PCB")
                     {
                         // Debug.DrawRay(rayOrigin, rayDirection, Color.green, 999999);
-                        matrix[xIndex, zIndex] = false;
+                        matrix[xIndex, zIndex] = null;
                     }
                     else
                     {
                         Debug.DrawRay(rayOrigin, rayDirection, Color.red, 999999);
-                        matrix[xIndex, zIndex] = true;
+                        matrix[xIndex, zIndex] = raycastHit.collider.gameObject;
                     }
                 }
 
