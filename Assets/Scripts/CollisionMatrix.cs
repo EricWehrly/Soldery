@@ -2,6 +2,7 @@
 
 class CollisionMatrix
 {
+    // TODO: take this from circuit line width?
     private const float STEP_AMOUNT = .0075f;
     private static Transform _mainBoard;
     public static GameObject[,] matrix { get; private set; }
