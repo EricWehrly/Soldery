@@ -48,10 +48,10 @@ class CollisionMatrix
             offsetFromGridPosition(offsetZ));
     }
 
-    public static bool InBounds((int, int) Point)
+    public static bool InBounds(int xIndex, int zIndex)
     {
-        return Point.Item1 > 1 && Point.Item1 < CollisionMatrix.matrix.GetLength(0) - 1
-               && Point.Item2 > 1 && Point.Item2 < CollisionMatrix.matrix.GetLength(1) - 1;
+        return xIndex > 1 && xIndex < matrix.GetLength(0) - 1
+               && zIndex > 1 && zIndex < matrix.GetLength(1) - 1;
     }
 
     static float offsetFromGridPosition(int gridPosition)

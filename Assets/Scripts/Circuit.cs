@@ -40,6 +40,7 @@ public class Circuit
 
     public static void RenderCircuits()
     {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
         lock (syncLock)
         {
             var orderedList = Circuits.OrderByDescending(circuit => circuit.Distance);
@@ -49,6 +50,8 @@ public class Circuit
                 if (!circuit.Rendered) circuit.Render();
             }
         }
+        var elapsedMs = watch.ElapsedMilliseconds;
+        if(elapsedMs != 0) Debug.Log("Circuits took " + elapsedMs + "ms to render.");
     }
 
     public void Render()
@@ -84,21 +87,36 @@ public class Circuit
         Rendered = true;
     }
 
+    int depth = 0;
+
     // should this be 'continue to destination'?
     private void addNextLinePoint((int, int) gridDestination, Vector3 destinationPosition, 
         Point prevDirection, Point prevGridPoint, Vector3 prevPosition)
     {
+        depth++;
         var direction = new Point(-1, 0);
         if (prevDirection.x == -1) direction = new Point(0, 1);
 
         var nextPoint = getNextGridPosition(prevGridPoint, direction, gridDestination);
-        var thirdPosition = CollisionMatrix.convertGridSpaceToObjectSpace(nextPoint.x, nextPoint.y);
-        thirdPosition.x = prevPosition.x;
-        if (prevGridPoint.y == gridDestination.Item2) thirdPosition.z = destinationPosition.z;
-        addLineRendererPoint(lineRenderer, thirdPosition);
+        var nextPosition = CollisionMatrix.convertGridSpaceToObjectSpace(nextPoint.x, nextPoint.y);
+        nextPosition.y = destinationPosition.y;
+        if(prevDirection.y == 0) nextPosition.x = prevPosition.x;
+        else nextPosition.z = prevPosition.z;
+        if (nextPoint.x == gridDestination.Item1) nextPosition.x = destinationPosition.x;
+        else if (nextPoint.y == gridDestination.Item2) nextPosition.z = destinationPosition.z;
+        addLineRendererPoint(lineRenderer, nextPosition);
         // CollisionMatrix.drawRayToCollisionMatrixPoint((nextPoint.x, nextPoint.y));
 
-        // while not at destination, addNextLinePoint
+        if(nextPosition == prevPosition)
+        {
+            Debug.Log("Repeated points. There's a problem.");
+            return;
+        }
+
+        if(nextPosition != destinationPosition)
+        {
+            addNextLinePoint(gridDestination, destinationPosition, direction, nextPoint, nextPosition);
+        }
     }
 
     private void addLineRendererPoint(LineRenderer lineRenderer, Vector3 point)
@@ -112,10 +130,12 @@ public class Circuit
         currentPoint = currentPoint + direction;
 
         // TODO: extract collision block to separate method ...
-        while (CollisionMatrix.InBounds((currentPoint.x, currentPoint.y))
+        while (CollisionMatrix.InBounds(currentPoint.x, currentPoint.y)
             && (CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == null
-            || CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == Origin.gameObject))
+            || CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == Origin.gameObject)
+            || CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == lineRenderer.gameObject)
         {
+
             if (direction.x > 0 && currentPoint.x >= gridDestination.Item1
             || direction.x < 0 && currentPoint.x <= gridDestination.Item1
             || direction.y > 0 && currentPoint.y >= gridDestination.Item2
@@ -123,6 +143,11 @@ public class Circuit
 
             CollisionMatrix.matrix[currentPoint.x, currentPoint.y] = lineRenderer.gameObject;
             currentPoint = currentPoint + direction;
+        }
+        // this is messy but whatever ...
+        if (CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == Destination.gameObject)
+        {
+            return new Point(gridDestination.Item1, gridDestination.Item2);
         }
         /*
         if (CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == null)
