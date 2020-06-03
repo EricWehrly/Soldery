@@ -3,8 +3,9 @@
 class CollisionMatrix
 {
     // TODO: take this from circuit line width?
-    private const float STEP_AMOUNT = .0075f;
+    private const float STEP_AMOUNT = .01f;
     private static Transform _mainBoard;
+    // private set doesn't accomplish what we need, we will need to set up assignment and fetch methods
     public static GameObject[,] matrix { get; private set; }
 
     static CollisionMatrix()
@@ -88,7 +89,7 @@ class CollisionMatrix
                     }
                     else
                     {
-                        Debug.DrawRay(rayOrigin, rayDirection, Color.red, 999999);
+                        // Debug.DrawRay(rayOrigin, rayDirection, Color.red, 999999);
                         matrix[xIndex, zIndex] = raycastHit.collider.gameObject;
                     }
                 }

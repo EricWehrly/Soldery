@@ -46,8 +46,6 @@ public class Circuit
                 if (!circuit.Rendered)
                 {
                     circuit.Render();
-                    // we ran into a collision, and removed it, try again ...
-                    if (!circuit.Rendered) circuit.Render();
                 }
             }
         }
@@ -76,7 +74,6 @@ public class Circuit
 
     public void Destroy()
     {
-        // GameObject.Destroy(gameObject);
         GameObject.DestroyImmediate(gameObject);
         depth = 0;
 
@@ -112,84 +109,57 @@ public class Circuit
         nextPosition.z = originPosition.z;
         if (nextGridPoint.x == gridDestination.Item1) nextPosition.x = destinationPosition.x;
         addLineRendererPoint(lines, nextPosition);
-        CollisionMatrix.drawRayToCollisionMatrixPoint((nextGridPoint.x, nextGridPoint.y));
+        // CollisionMatrix.drawRayToCollisionMatrixPoint((nextGridPoint.x, nextGridPoint.y));
 
         // then turn, heading toward our destination
-        var terminated = addNextLinePoint(gridDestination, destinationPosition, direction, nextGridPoint, nextPosition, lines);
+        continueToDestination(gridDestination, destinationPosition, direction, nextGridPoint, nextPosition, lines);
 
-        if(terminated) Rendered = true;
+        Rendered = true;
     }
 
-    // should this be 'continue to destination'?
-    private bool addNextLinePoint((int, int) gridDestination, Vector3 destinationPosition, 
+    private void continueToDestination((int, int) gridDestination, Vector3 destinationPosition,
         Point prevDirection, Point prevGridPoint, Vector3 prevPosition, LineRenderer lineRenderer)
     {
         depth++;
-        bool successful = true;
-        Point direction = GetNextDirection(prevDirection);
+        Point direction = getNextDirection(prevDirection);
 
         Vector3 nextPosition;
         var nextPoint = getNextGridPosition(prevGridPoint, direction, gridDestination);
         nextPosition = getNextPosition(gridDestination, destinationPosition, prevDirection, prevPosition, nextPoint);
         // CollisionMatrix.drawRayToCollisionMatrixPoint((nextPoint.x, nextPoint.y));
 
+        // TODO: if we've collided with a line, see if we can "hug" that line ...
+
         if (nextPosition == prevPosition)
         {
-            handleRepeatedPoints(gridDestination, destinationPosition, prevGridPoint, direction, nextPosition, nextPoint);
+            handleRepeatedPoints(gridDestination, prevGridPoint, direction);
         } else
         {
             addLineRendererPoint(lineRenderer, nextPosition);
         }
 
-        if(depth > 20)
+        if(depth > 15)
         {
-            Debug.Log(gameObject.name + " exceeded 10 depth.");
-            return true;
+            Debug.Log(gameObject.name + " exceeded 15 depth.");
+            return;
         }
 
         if (nextPosition != destinationPosition)
         {
-            successful = addNextLinePoint(gridDestination, destinationPosition, direction, nextPoint, nextPosition, lineRenderer);
+            continueToDestination(gridDestination, destinationPosition, direction, nextPoint, nextPosition, lineRenderer);
         }
-
-        return successful;
     }
 
-    private bool handleRepeatedPoints((int, int) gridDestination, Vector3 destinationPosition, Point prevGridPoint, Point direction, Vector3 nextPosition, Point nextPoint)
+    private bool handleRepeatedPoints((int, int) gridDestination, Point prevGridPoint, Point direction)
     {
-        string prevCollision = lastCollisionReason.ToString();
-        if(lastCollidedGameObject != null) prevCollision = lastCollidedGameObject.name;
-
         // we've reversed directions because we collided with something. reverse back and see what we last collided with
-        direction = GetNextDirection(direction);
+        direction = getNextDirection(direction);
         getNextGridPosition(prevGridPoint, direction, gridDestination);
-
-        try
-        {
-            Debug.Log("Repeated point. Last collision reason: " + lastCollisionReason.ToString());
-            Debug.Log(gameObject.name + " collided with " + prevCollision + " and then " + lastCollidedGameObject.name
-                + " at " + nextPosition + " trying to get to " + destinationPosition);
-        } catch(MissingReferenceException ex)
-        {
-            Debug.Log("Oopsie.");
-        }
-
-        // Debug.Log("Repeated points in " + gameObject.name + ". Depth " + depth);
-        // Debug.Log(nextPosition.x + ", " + nextPosition.z);
-        // Debug.Log(destinationPosition.x + ", " + destinationPosition.z);
-        // Debug.Log("Last collision reason: " + lastCollisionReason);
-        // Debug.Log("Last collision object: " + lastCollidedGameObject);
 
         if(lastCollidedGameObject != null)
         {
-            // Debug.Log("Deleting " + lastCollidedGameObject.name);
             Circuit collidingCircuit = Circuit.fromGameObject(lastCollidedGameObject);
             if(collidingCircuit != null) collidingCircuit.Destroy();
-            // collidingCircuit.Render();
-            // GameObject.Destroy(gameObject);
-            // GameObject.DestroyImmediate(gameObject);
-
-            // return false;
         }
 
         return true;
@@ -211,14 +181,14 @@ public class Circuit
         return nextPosition;
     }
 
-    private Point GetNextDirection(Point prevDirection)
+    private Point getNextDirection(Point prevDirection)
     {
         if (prevDirection.x == -1) return new Point(0, 1);
-        
+
         else return new Point(-1, 0);
     }
 
-    private static Vector3 clampPosition((int, int) gridDestination, Vector3 destinationPosition, 
+    private static Vector3 clampPosition((int, int) gridDestination, Vector3 destinationPosition,
         Point prevDirection, Vector3 prevPosition, Point nextPoint, Vector3 nextPosition)
     {
         nextPosition.y = destinationPosition.y;
@@ -242,23 +212,24 @@ public class Circuit
     {
         currentPoint = currentPoint + direction;
 
-        lastCollisionReason = GetCollisionReason(currentPoint, direction, gridDestination);
+        lastCollisionReason = getCollisionReason(currentPoint, direction, gridDestination);
         while (lastCollisionReason == CollisionReason.NONE)
         {
             CollisionMatrix.matrix[currentPoint.x, currentPoint.y] = gameObject.gameObject;
             GridPoints.Add((currentPoint.x, currentPoint.y));
             currentPoint = currentPoint + direction;
 
-            lastCollisionReason = GetCollisionReason(currentPoint, direction, gridDestination);
+            lastCollisionReason = getCollisionReason(currentPoint, direction, gridDestination);
         }
 
         if (CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == Destination.gameObject)
         {
             return new Point(gridDestination.Item1, gridDestination.Item2);
+
         } else if(lastCollisionReason == CollisionReason.AT_DESTINATION)
         {
             // turn and see if something is between us and destination. if so, back up ...
-            var nextPosition = getNextGridPosition(currentPoint, GetNextDirection(direction), gridDestination);
+            var nextPosition = getNextGridPosition(currentPoint, getNextDirection(direction), gridDestination);
             (int, int) nextGridPosition = (nextPosition.x, nextPosition.y);
 
             if(nextGridPosition != gridDestination && lastCollisionReason == CollisionReason.HIT_OBJECT)
@@ -271,7 +242,7 @@ public class Circuit
         return clampCurrentPointToDestination(currentPoint, direction, gridDestination);
     }
 
-    private CollisionReason GetCollisionReason(Point currentPoint, Point direction, (int, int) gridDestination)
+    private CollisionReason getCollisionReason(Point currentPoint, Point direction, (int, int) gridDestination)
     {
         if (!CollisionMatrix.InBounds(currentPoint.x, currentPoint.y)) return CollisionReason.OUT_OF_BOUNDS;
 
@@ -352,33 +323,6 @@ public class Circuit
         point = dir + pivot;
 
         return point;
-    }
-
-    private struct Point
-    {
-        public int x;
-        public int y;
-
-        public Point(int xValue, int yValue)
-        {
-            x = xValue;
-            y = yValue;
-        }
-
-        public static Point operator +(Point a, Point b)
-        {
-            return new Point(a.x + b.x, a.y + b.y);
-        }
-
-        public static Point operator -(Point a, Point b)
-        {
-            return new Point(a.x - b.x, a.y - b.y);
-        }
-
-        public override string ToString()
-        {
-            return x + ", " + y;
-        }
     }
 
     private enum CollisionReason
