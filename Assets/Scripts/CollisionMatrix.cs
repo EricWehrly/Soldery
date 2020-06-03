@@ -37,8 +37,6 @@ class CollisionMatrix
 
     public static Vector3 convertGridSpaceToObjectSpace(int xIndex, int yIndex)
     {
-        // diff between the index and grid 'center'
-        // translate through offsetFromGridPosition
         var offsetX = -1 * ((matrix.GetLength(0) / 2) - xIndex);
         var offsetZ = -1 * ((matrix.GetLength(1) / 2) - yIndex);
 
@@ -83,8 +81,6 @@ class CollisionMatrix
 
                 if (isHit)
                 {
-                    // Debug.Log(raycastHit.collider.gameObject.name);
-
                     if (raycastHit.collider.gameObject.name == "PCB")
                     {
                         // Debug.DrawRay(rayOrigin, rayDirection, Color.green, 999999);
