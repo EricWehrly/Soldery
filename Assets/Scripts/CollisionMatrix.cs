@@ -15,25 +15,25 @@ class CollisionMatrix
         mapCollisionMatrix();
     }
 
-    public static void drawRayToCollisionMatrixPoint((int, int) point)
+    public static void drawRayToCollisionMatrixPoint(Point point)
     {
         var renderer = _mainBoard.transform.Find("PCB").GetComponent<Renderer>();
-        var x = renderer.bounds.min.x + (point.Item1 * STEP_AMOUNT);
+        var x = renderer.bounds.min.x + (point.x * STEP_AMOUNT);
         var y = _mainBoard.position.y + 1f;
-        var z = renderer.bounds.min.z + (point.Item2 * STEP_AMOUNT);
+        var z = renderer.bounds.min.z + (point.y * STEP_AMOUNT);
 
         var rayOrigin = new Vector3(x, y, z);
         var rayDirection = Vector3.down;
         Debug.DrawRay(rayOrigin, rayDirection, Color.white, 999999);
     }
 
-    public static (int, int) getPositionInCollisionMatrix(Vector3 transformWorldPosition)
+    public static Point getPositionInCollisionMatrix(Vector3 transformWorldPosition)
     {
         var renderer = _mainBoard.transform.Find("PCB").GetComponent<Renderer>();
 
         var xIndex = Mathf.CeilToInt((transformWorldPosition.x - renderer.bounds.min.x) / STEP_AMOUNT);
         var zIndex = Mathf.CeilToInt((transformWorldPosition.z - renderer.bounds.min.z) / STEP_AMOUNT);
-        return (xIndex, zIndex);
+        return new Point(xIndex, zIndex);
     }
 
     public static Vector3 convertGridSpaceToObjectSpace(int xIndex, int yIndex)

@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+
 [Serializable]
-struct Point
+struct Point : IEquatable<Point>
 {
     public int x;
     public int y;
@@ -21,6 +20,20 @@ struct Point
     public static Point operator -(Point a, Point b)
     {
         return new Point(a.x - b.x, a.y - b.y);
+    }
+    public static bool operator ==(Point a, Point b)
+    {
+        return a.x == b.x && a.y == b.y;
+    }
+
+    public static bool operator !=(Point a, Point b)
+    {
+        return a.x != b.x && a.y != b.y;
+    }
+
+    public bool Equals(Point other)
+    {
+        return x == other.x && y == other.y;
     }
 
     public override string ToString()
