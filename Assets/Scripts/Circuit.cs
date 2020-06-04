@@ -21,7 +21,7 @@ public class Circuit
     private CollisionReason lastCollisionReason = CollisionReason.NONE;
     private GameObject lastCollidedGameObject;
     private List<Point> GridPoints = new List<Point>();
-    private int depth = 0;
+    private int recursions = 0;
     private Point gridDestination;
     private Vector3 destinationPosition;
 
@@ -57,12 +57,7 @@ public class Circuit
 
     private static Circuit fromGameObject(GameObject from)
     {
-        foreach(Circuit circuit in Circuits)
-        {
-            if (circuit.gameObject == from) return circuit;
-        }
-
-        return null;
+        return Circuits.FirstOrDefault(circuit => circuit.gameObject == from);
     }
 
     public Circuit(Transform origin, Transform destination)
@@ -77,9 +72,9 @@ public class Circuit
     public void Destroy()
     {
         GameObject.DestroyImmediate(gameObject);
-        depth = 0;
+        recursions = 0;
 
-        foreach(var gridPoint in GridPoints)
+        foreach(Point gridPoint in GridPoints)
         {
             CollisionMatrix.matrix[gridPoint.x, gridPoint.y] = null;
         }
@@ -94,7 +89,7 @@ public class Circuit
         gameObject.name = "Circuit " + circuitCount++;
         var lines = gameObject.GetComponent<LineRenderer>();
 
-        var originGridPosition = CollisionMatrix.getPositionInCollisionMatrix(Origin.position);
+        Point originGridPosition = CollisionMatrix.getPositionInCollisionMatrix(Origin.position);
         gridDestination = CollisionMatrix.getPositionInCollisionMatrix(Destination.position);
 
         Vector3 originPosition = getLocalPosition(Origin);
@@ -102,8 +97,7 @@ public class Circuit
         lines.positionCount = 1;
         lines.SetPosition(0, originPosition);
 
-        continueToDestination(new Point(0, 1),
-            new Point(originGridPosition.x, originGridPosition.y), originPosition, lines);
+        continueToDestination(new Point(0, 1), originGridPosition, originPosition, lines);
 
         Rendered = true;
     }
@@ -111,11 +105,10 @@ public class Circuit
     private void continueToDestination(Point prevDirection, Point prevGridPoint, Vector3 prevPosition,
         LineRenderer lineRenderer)
     {
-        depth++;
+        recursions++;
         Point direction = getNextDirection(prevDirection);
-
         Point nextPoint = getNextGridPosition(prevGridPoint, direction);
-        Vector3 nextPosition = getNextPosition(destinationPosition, prevDirection, prevPosition, nextPoint);
+        Vector3 nextPosition = getNextPosition(prevDirection, prevPosition, nextPoint);
         // CollisionMatrix.drawRayToCollisionMatrixPoint((nextPoint.x, nextPoint.y));
 
         // TODO: if we've collided with a line, see if we can "hug" that line ...
@@ -129,9 +122,9 @@ public class Circuit
             addLineRendererPoint(lineRenderer, nextPosition);
         }
 
-        if(depth > 15)
+        if(recursions > 15)
         {
-            Debug.Log(gameObject.name + " exceeded 15 depth.");
+            Debug.Log(gameObject.name + " exceeded 15 recursions.");
             return;
         }
 
@@ -154,20 +147,14 @@ public class Circuit
         }
     }
 
-    private Vector3 getNextPosition(Vector3 destinationPosition, Point prevDirection, Vector3 prevPosition, Point nextPoint)
+    private Vector3 getNextPosition(Point prevDirection, Vector3 prevPosition, Point nextPoint)
     {
-        Vector3 nextPosition;
-        if (nextPoint.x == gridDestination.x && nextPoint.y == gridDestination.y)
-        {
-            nextPosition = destinationPosition;
-        }
+        if (nextPoint == gridDestination) return destinationPosition;
         else
         {
-            nextPosition = CollisionMatrix.convertGridSpaceToObjectSpace(nextPoint.x, nextPoint.y);
-            nextPosition = clampPosition(destinationPosition, prevDirection, prevPosition, nextPoint, nextPosition);
+            Vector3 nextPosition = CollisionMatrix.convertGridSpaceToObjectSpace(nextPoint.x, nextPoint.y);
+            return clampPosition(prevDirection, prevPosition, nextPoint, nextPosition);
         }
-
-        return nextPosition;
     }
 
     private Point getNextDirection(Point prevDirection)
@@ -177,8 +164,7 @@ public class Circuit
         else return new Point(-1, 0);
     }
 
-    private Vector3 clampPosition(Vector3 destinationPosition,
-        Point prevDirection, Vector3 prevPosition, Point nextPoint, Vector3 nextPosition)
+    private Vector3 clampPosition(Point prevDirection, Vector3 prevPosition, Point nextPoint, Vector3 nextPosition)
     {
         nextPosition.y = destinationPosition.y;
 
@@ -186,6 +172,8 @@ public class Circuit
         if (prevDirection.y == 0) nextPosition.x = prevPosition.x;
         else nextPosition.z = prevPosition.z;
 
+        // this is necessary to align to the actual position of the object we're targeting
+        // (though it does result in some offset from where the line 'should' be in terms of collisions
         if (nextPoint.x == gridDestination.x) nextPosition.x = destinationPosition.x;
         else if (nextPoint.y == gridDestination.y) nextPosition.z = destinationPosition.z;
 
@@ -212,16 +200,22 @@ public class Circuit
             lastCollisionReason = getCollisionReason(currentPoint, direction);
         }
 
+        return adjustedGridPosition(currentPoint, direction);
+    }
+
+    private Point adjustedGridPosition(Point currentPoint, Point direction)
+    {
         if (CollisionMatrix.matrix[currentPoint.x, currentPoint.y] == Destination.gameObject)
         {
-            return new Point(gridDestination.x, gridDestination.y);
+            return gridDestination;
 
-        } else if(lastCollisionReason == CollisionReason.AT_DESTINATION)
+        }
+        else if (lastCollisionReason == CollisionReason.AT_DESTINATION)
         {
             // turn and see if something is between us and destination. if so, back up ...
             var nextGridPosition = getNextGridPosition(currentPoint, getNextDirection(direction));
 
-            if(nextGridPosition != gridDestination && lastCollisionReason == CollisionReason.HIT_OBJECT)
+            if (nextGridPosition != gridDestination && lastCollisionReason == CollisionReason.HIT_OBJECT)
             {
                 // back up ...
                 return currentPoint - direction - direction;
@@ -261,7 +255,6 @@ public class Circuit
             || direction.y < 0 && currentPoint.y <= gridDestination.y;
     }
 
-    // TODO: Just use gridDestination as min and max, drop direction ...
     private Point clampCurrentPointToDestination(Point currentPoint, Point direction)
     {
         if (direction.x > 0 && currentPoint.x >= gridDestination.x)
@@ -290,11 +283,9 @@ public class Circuit
 
     private Vector3 getLocalPosition(Transform childObject)
     {
-        // Debug.Log("Starting at " + childObject);
         Vector3 result = new Vector3(0, 0, 0);
         while(childObject.transform != null && childObject.transform != _mainBoard)
         {
-            // Debug.Log("Adding position for: " + childObject);
             result += rotatePointAroundPivot(
                 childObject.localPosition, Vector3.zero, childObject.parent.localRotation.eulerAngles);
 
