@@ -1,7 +1,6 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
+// TODO: Assign pin script to all scene clickable scripts, make scene clickable abstract, make pin inherit it
 public class SceneClickable : MonoBehaviour
 {
     private static GameObject _firstConnection;
@@ -42,17 +41,19 @@ public class SceneClickable : MonoBehaviour
 
     private void OnMouseDown()
     {
-        // Debug.Log("Firstconnection started as " + _firstConnection);
+        Debug.Log("Firstconnection started as " + _firstConnection);
 
         if (_firstConnection == gameObject)
         {
             changeMaterial(_firstConnection, _initialMaterial);
             _firstConnection = null;
         }
-        else if (_firstConnection != null)
+        else if (_firstConnection != null && _firstConnection.transform.parent != gameObject.transform.parent)
         {
-            drawLines(_firstConnection.transform, gameObject.transform);
+            // drawLines(_firstConnection.transform, gameObject.transform);
             changeMaterial(_firstConnection, _initialMaterial);
+            new Circuit(_firstConnection.transform, gameObject.transform)
+                .Render();
             _firstConnection = null;
         }
         else
@@ -61,8 +62,8 @@ public class SceneClickable : MonoBehaviour
             changeMaterial(_firstConnection, HighlightMaterial);
         }
 
-        // if (_firstConnection == null) Debug.Log("First connection is null.");
-        // else Debug.Log("First connection ended as " + _firstConnection + " at " + _firstConnection.transform.position);
+        if (_firstConnection == null) Debug.Log("First connection is null.");
+        else Debug.Log("First connection ended as " + _firstConnection + " at " + _firstConnection.transform.position);
     }
 
     private void changeMaterial(GameObject targetObject, Material newMaterial)

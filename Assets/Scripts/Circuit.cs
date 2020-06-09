@@ -4,6 +4,7 @@ using System.Linq;
 
 public class Circuit
 {
+    private static readonly int MAX_RECURSIONS = 25;
     private static readonly object syncLock = new object();
 
     private static Transform _mainBoard;
@@ -60,6 +61,7 @@ public class Circuit
         return Circuits.FirstOrDefault(circuit => circuit.gameObject == from);
     }
 
+    // TODO: optional override material for lines
     public Circuit(Transform origin, Transform destination)
     {
         Origin = origin;
@@ -111,6 +113,8 @@ public class Circuit
         Vector3 nextPosition = getNextPosition(prevDirection, prevPosition, nextPoint);
         // CollisionMatrix.drawRayToCollisionMatrixPoint((nextPoint.x, nextPoint.y));
 
+        // min line length?
+
         // TODO: if we've collided with a line, see if we can "hug" that line ...
 
         // TODO: move this into 'getNextGridPosition'?
@@ -122,9 +126,9 @@ public class Circuit
             addLineRendererPoint(lineRenderer, nextPosition);
         }
 
-        if(recursions > 15)
+        if(recursions > MAX_RECURSIONS)
         {
-            Debug.Log(gameObject.name + " exceeded 15 recursions.");
+            Debug.Log(gameObject.name + " exceeded " + MAX_RECURSIONS + " recursions.");
             return;
         }
 

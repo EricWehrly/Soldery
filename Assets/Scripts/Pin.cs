@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Pin : MonoBehaviour
 {
@@ -18,7 +16,7 @@ public class Pin : MonoBehaviour
 
         // connectStaticConnectors();
 
-        if(ConnectionDestination != null)
+        if(enabled && ConnectionDestination != null)
         {
             new Circuit(transform, ConnectionDestination);
 

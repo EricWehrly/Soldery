@@ -1,3 +1,10 @@
+Write a script attached to the mainboard that makes it clickable
+When you click on it, camera controls change
+the board comes to the height of the camera, and turns to face it
+then mousewheel zooms in and out
+and right-click and drag rotates the board
+
+
 Realtime mesh deformation (for chip melting):
 https://www.codinblack.com/vertex-manipulation-using-shader-graph-in-unity3d/
 
