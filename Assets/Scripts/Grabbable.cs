@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Grabbable : MonoBehaviour
@@ -17,6 +15,7 @@ public class Grabbable : MonoBehaviour
         if(grabbedObject == null)
         {
             grabbedObject = gameObject.transform;
+            OnGrabbed.Invoke(this, null);
         }
     }
     
@@ -25,7 +24,6 @@ public class Grabbable : MonoBehaviour
         if(grabbedObject == gameObject.transform && Input.GetMouseButtonUp(0))
         {
             grabbedObject = null;
-            // if the object is a chip, spawn pins ...
             OnReleased.Invoke(this, null);
         }
 
@@ -35,10 +33,13 @@ public class Grabbable : MonoBehaviour
             var screenRay = Camera.main.ScreenPointToRay(Input.mousePosition);
             Physics.Raycast(screenRay, out hitInfo);
 
-            Vector3 newPos = Vector3.Lerp(transform.position, hitInfo.point, Time.deltaTime * 4);
-            grabbedObject.position = newPos;
+            // Vector3 newPos = Vector3.Lerp(transform.position, hitInfo.point, Time.deltaTime * 4);
+            // grabbedObject.position = newPos;
+            grabbedObject.position = hitInfo.point;
         }
     }
+
+    public event EventHandler OnGrabbed;
 
     public event EventHandler OnReleased;
 }
